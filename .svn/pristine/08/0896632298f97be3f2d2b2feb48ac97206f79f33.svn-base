@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html style="height: 100%;">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <script type="text/javascript" src="./static/js/config.js"></script>
+  <script type="text/javascript" src="./static/js/DateUtil.js"></script>
+  <title>金融服务平台</title>
+</head>
+
+<body style="height: 100%;">
+  <div id="app"></div>
+  <!-- built files will be auto injected -->
+</body>
+
+</html>

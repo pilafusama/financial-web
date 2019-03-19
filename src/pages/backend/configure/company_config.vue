@@ -1,0 +1,882 @@
+<template>
+  <el-row class="content">
+    <div class="left-menu" v-if="menus.length > 0">
+      <el-menu :default-active="menus[0].fn" class="el-menu-vertical-demo" active-text-color="#277DFF" text-color="#999999" @select="menuSelect">
+        <el-menu-item v-for="(item, index) in menus" :key="index" :index="item.fn">
+          <span slot="title">{{ item.text }}</span>
+        </el-menu-item>
+      </el-menu>
+    </div>
+    <div class="right-content">
+      <div class="content-title">
+        <span class="main-title" @click="toStep(0)">{{ contentTitle }}</span>
+        <span v-if="subTitle!=''">&nbsp;>&nbsp;</span>
+        <span class="sub-title">{{ subTitle }}</span>
+      </div>
+      <hr/>
+      <div class="bank-flow-conf">
+        <div class="step-0" v-if="step === 0">
+          <div><img src="../../../../static/img/setting.png" /></div>
+          <div>
+            <span>配置新的审批流程绑定银行卡付款</span>
+          </div>
+          <div>
+            <el-button type="primary" @click="toStep(1)">立即配置</el-button>
+          </div>
+        </div>
+        <div class="step-1" v-if="step === 1">
+          <el-form :model="bankFlowForm" :rules="rules" ref="bankFlowForm" label-width="96px" class="bank-flow-form" size="small" label-position="right">
+            <el-row class="form-item-title">
+              <span>
+                <span>1</span>
+              </span>请选择审批流绑定付款的银行
+            </el-row>
+            <el-form-item label="银行名称" prop="bankType" ref="bankTypeItem">
+              <el-row class="bankList">
+                <div id="1150" :class="{'bank-selected': bankFlowForm.bankType == '1150'}" @click="bankSelect($event)" v-if="urlBankType === '1150'">
+                  <img src="@/../static/img/zsyh_logo.png">
+                  <!--<div>招商银行</div>-->
+                </div>
+                <div id="1151" :class="{'bank-selected': bankFlowForm.bankType == '1151'}" @click="bankSelect($event)" v-if="urlBankType === '1151' || urlBankType === ''">
+                  <img src="@/../static/img/payh_logo.png">
+                  <!--<div>平安银行</div>-->
+                </div>
+              </el-row>
+            </el-form-item>
+            <el-row class="form-item-title">
+              <span>
+                <span>2</span>
+              </span>
+              请填写以下关键信息
+            </el-row>
+            <el-form-item label="企业名称" prop="corpName">
+              <el-input v-model="bankFlowForm.corpName" placeholder="请输入企业完整名称" @blur="spaceFilter"></el-input>
+            </el-form-item>
+            <el-form-item label="审批流秘钥" class="secret-clz" prop="secret">
+              <el-input v-model="bankFlowForm.secret" placeholder="请输入审批流密钥"></el-input>
+            </el-form-item>
+            <div class="how-pwd">
+              <a @click="guidePwd">如何获取审批流秘钥？</a>
+            </div>
+            <!--
+            <el-form-item label="付款类型" prop="approval_type">
+              <el-checkbox-group v-model="bankFlowForm.approval_type">
+                <el-checkbox
+                  v-for="(payType, index) in payTypes"
+                  :label="payType.id"
+                  :key="index"
+                  :disabled="payType.disabled"
+                >
+                {{ payType.name }}
+                </el-checkbox>
+              </el-checkbox-group>
+            </el-form-item>
+            -->
+            <el-row class="form-item-title">
+              <span>
+                <span>3</span>
+              </span>
+              {{this.noticeText}}
+            </el-row>
+            <!--
+            <el-form-item label="appid" prop="appid">
+              <el-input v-model="bankFlowForm.appid"></el-input>
+            </el-form-item>
+            -->
+            <el-form-item label="手机银行帐号" prop="bankUin">
+              <el-input v-model="bankFlowForm.bankUin" :placeholder="this.bankUinText" @blur="spaceFilter"></el-input>
+            </el-form-item>
+            <el-form-item label="身份证号" prop="certId">
+              <el-input v-model="bankFlowForm.certId" :placeholder="this.certIdText" @blur="spaceFilter"></el-input>
+            </el-form-item>
+            <el-form-item label="手机号码" prop="opUserPhone">
+              <el-input v-model="bankFlowForm.opUserPhone" :placeholder="this.phoneText" @blur="spaceFilter"></el-input>
+            </el-form-item>
+            <el-form-item label="短信验证码" class="verify-code">
+              <el-input v-model="bankFlowForm.verifyCode" placeholder="请输入短信验证码"></el-input>
+              <el-button type="primary" @click="getVerifyCode" :disabled="getCodeBtnDisabled">{{ getCodeBtnText }}</el-button>
+            </el-form-item>
+            <el-form-item class="submit-item">
+              <el-button type="primary" @click="dosubmit">提交</el-button>
+              <!--
+              <el-button type="default" @click="toStep(0)">取消</el-button>
+              -->
+            </el-form-item>
+          </el-form>
+        </div>
+        <div class="step-3" v-if="step === 3">
+          <!--
+          <div>配置新的审批流绑定银行付款</div>
+          -->
+          <!--
+          <div tabindex="0" class="bind-flow-box edit">
+            <div class="bank-flow-info">
+              <img src="../../../../static/img/zsyh_logo.png">
+              <span class="bank-name">招商银行</span>
+              <span class="busi-list">xxxxxxx</span>
+            </div>
+            <div class="do-btn">
+              <span>修改配置</span>
+              <span @click="delBind">取消绑定</span>
+            </div>
+          </div>
+          -->
+          <div tabindex="0" class="bind-flow-box add" @click="toStep(1)">
+            <i class="el-icon-plus"></i>
+            <div>配置新的审批流程</div>
+            <div>绑定银行付款</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <app-footer class="footer"></app-footer>
+    <el-dialog title="" :visible.sync="guideDialogVisible" class="guide-dialog">
+      <div class="guide-content">
+        <div>1. 进入企业微信管理后台，在“企业应用“→“基础应用”，点击“审批”应用。</div>
+        <div class="guide-step1"><img src="../../../../static/img/guide-step1.png" /></div>
+        <div>2. 点开“API”小按钮，即可看到审批流秘钥。</div>
+        <div class="guide-step2"><img src="../../../../static/img/guide-step2.png" /></div>
+      </div>
+      <span slot="footer" class="dialog-footer">
+        <el-button type="primary" @click="guideDialogVisible = false">关闭</el-button>
+      </span>
+    </el-dialog>
+  </el-row>
+</template>
+
+<script>
+import AppFooter from '@/components/common/AppFooter'
+import { sendVerifyCode, saveBankInfo, getApprovalConf } from '@/api/getData'
+import cookieUtils from '@/utils/CookieUtils'
+// import func from './vue-temp/vue-editor-bridge'
+var phoneValidate = (rule, value, callback) => {
+  if (!value) {
+    return callback(new Error(this.phoneText))
+  }
+  setTimeout(() => {
+    if (value.match(/^(13[0-9]|14[579]|15[0-3,5-9]|16[6]|17[0135678]|18[0-9]|19[89])\d{8}$/) === null) {
+      callback(new Error('请输入正确的手机号码'))
+    } else {
+      callback()
+    }
+  }, 500)
+}
+var idCodeValidate = (rule, value, callback) => {
+  if (!value) {
+    return callback(new Error(this.certIdText))
+  }
+  setTimeout(() => {
+    if (value.match(/(^\d{15}$)|(^\d{18}$)|(^\d{17}(\d|X|x)$)/) === null) {
+      callback(new Error('请输入正确格式的身份证号码'))
+    } else {
+      callback()
+    }
+  })
+}
+export default {
+  components: {
+    // 'app-header': AppHeader,
+    'app-footer': AppFooter
+  },
+  data () {
+    return {
+      urlBankType: '',
+      menus: [{
+        id: 1,
+        text: '审批流对接银行配置',
+        fn: 'bank_flow_conf'
+      }],
+      payTypes: [{
+        id: '1001',
+        name: '报销',
+        disabled: true
+      }, {
+        id: '1002',
+        name: '费用',
+        disabled: true
+      }, {
+        id: '1003',
+        name: '付款',
+        disabled: false
+      }],
+      step: 0,
+      contentTitle: '审批流对接银行配置',
+      subTitle: '',
+      defaultTime: 60,
+      time: 0,
+      defaultCodeBtnText: '获取验证码',
+      secondCodeBtnText: '重新获取验证码',
+      getCodeBtnText: '获取验证码',
+      getCodeBtnDisabled: false,
+      bankFlowForm: {
+        // appid: '',
+        bankType: '',
+        bankUin: '',
+        corpId: '',
+        corpName: '',
+        certId: '',
+        opUserId: '',
+        opUserPhone: '',
+        status: 'OPEN',
+        logSsid: '',
+        timeStamp: 33555,
+        nonce: 'random',
+        sign: '',
+        verifyCode: '',
+        secret: ''
+      },
+
+      guideDialogVisible: false
+    }
+  },
+  computed: {
+    bankName () {
+      if (this.bankFlowForm.bankType === '1151') {
+        return '平安银行'
+      } else if (this.bankFlowForm.bankType === '1150') {
+        return '招商银行'
+      } else {
+        return ''
+      }
+    },
+    noticeText () {
+      if (this.bankFlowForm.bankType === '1151' || this.bankFlowForm.bankType === '') {
+        return '请填写平安银行口袋财务如下用户信息'
+      } else {
+        return '请联系公司' + this.bankName + '手机银行管理员完成如下信息'
+      }
+    },
+    bankUinText () {
+      if (this.bankFlowForm.bankType === '1151' || this.bankFlowForm.bankType === '') {
+        return '请输入平安口袋财务用户名'
+      } else {
+        return '请输入' + this.bankName + '手机银行管理员的用户帐号'
+      }
+    },
+    certIdText () {
+      if (this.bankFlowForm.bankType === '1151' || this.bankFlowForm.bankType === '') {
+        return '请输入当前口袋财务用户名对应的身份证号码'
+      } else {
+        return '请输入' + this.bankName + '手机银行管理员的身份证号'
+      }
+    },
+    phoneText () {
+      if (this.bankFlowForm.bankType === '1151' || this.bankFlowForm.bankType === '') {
+        return '请输入当前口袋财务用户名对应预留手机号码'
+      } else {
+        return '请输入' + this.bankName + '手机银行管理员的手机号码'
+      }
+    },
+    rules () {
+      return {
+        bankType: [
+          { required: true, message: '请选择银行', trigger: 'change' }
+        ],
+        bankUin: [
+          { required: true, message: this.bankUinText, trigger: 'blur' },
+          { max: 128, message: '长度在128个字符以内', trigger: 'blur' }
+        ],
+        corpId: [
+          { required: true, message: '请输入企业ID', trigger: 'blur' },
+          { max: 64, message: '长度在64个字符以内', trigger: 'blur' }
+        ],
+        corpName: [
+          { required: true, message: '请输入企业完整名称', trigger: 'blur' },
+          { max: 128, message: '长度在128个字符以内', trigger: 'blur' }
+        ],
+        certId: [
+          { required: true, message: this.certIdText, trigger: 'blur' },
+          { max: 18, message: '长度在18个字符以内', trigger: 'blur' },
+          { validator: idCodeValidate, trigger: 'blur' }
+        ],
+        opUserPhone: [
+          { required: true, message: this.phoneText, trigger: 'blur' },
+          { validator: phoneValidate, trigger: 'blur' }
+        ],
+        secret: [
+          { required: true, message: '请输入审批流密钥', trigger: 'blur' }
+        ]
+      }
+    }
+  },
+  watch: {
+
+  },
+  created: function () {
+    // if (false && process.env.NODE_ENV === 'development') {
+    //   this.bankFlowForm.opUserId = 'janeszhan'
+    //   this.bankFlowForm.corpId = 'wwab433cc997fe7ff3'
+    //   this.bankFlowForm.logSsid = '93cd4d4f-c68f-4454-8b60-214e2e6ecf89'
+    //   this.bankFlowForm.sign = '93cd4d4f-c68f-4454-8b60-214e2e6ecf89'
+    // } else {
+    //   this.bankFlowForm.opUserId = cookieUtils.getCookie('userid')
+    //   this.bankFlowForm.corpId = cookieUtils.getCookie('corpid')
+    //   this.bankFlowForm.logSsid = cookieUtils.getCookie('logSsid')
+    //   this.bankFlowForm.sign = cookieUtils.getCookie('logSsid')
+    // }
+    this.bankFlowForm.opUserId = 'XuMaoLin'
+    this.bankFlowForm.corpId = 'wwa46c4cbd90c22bd2'
+    this.bankFlowForm.logSsid = '93cd4d4f-c68f-4454-8b60-214e2e6ecf89'
+    this.bankFlowForm.sign = '93cd4d4f-c68f-4454-8b60-214e2e6ecf89'
+    if (this.$route.query.step === undefined || this.$route.query.step === '') {
+      return
+    }
+    if (this.$route.query.bankType === undefined || this.$route.query.bankType === '') {
+      this.urlBankType = ''
+      return
+    }
+    this.step = parseInt(this.$route.query.step)
+    this.step = this.step < 0 ? 0 : this.step > 1 ? 1 : this.step
+    this.urlBankType = this.$route.query.bankType
+    this.urlBankType = this.urlBankType === '1151' || this.urlBankType === '1150' ? this.urlBankType : ''
+    // this.bankFlowForm.bankType = this.urlBankType;
+  },
+  methods: {
+    spaceFilter: function () {
+      this.bankFlowForm.bankUin = this.bankFlowForm.bankUin.replace(/\s/g, '')
+      this.bankFlowForm.certId = this.bankFlowForm.certId.replace(/\s/g, '')
+      this.bankFlowForm.opUserPhone = this.bankFlowForm.opUserPhone.replace(/\s/g, '')
+      this.bankFlowForm.corpName = this.bankFlowForm.corpName.replace(/\s/g, '')
+    },
+    menuSelect: function (index) {
+      // 根据index判断右边显示的内容
+    },
+    toStep (num) {
+      this.step = num
+      if (num === 0) {
+        this.subTitle = ''
+        this.$refs['bankFlowForm'].resetFields()
+        this.getCodeBtnText = this.defaultCodeBtnText
+        this.getCodeBtnDisabled = false
+      } else {
+        this.subTitle = '配置新审批流程'
+      }
+    },
+    bankSelect (event) {
+      let id = event.currentTarget.id
+      this.bankFlowForm.bankType = id
+      this.$refs['bankTypeItem'].clearValidate()
+    },
+    getVerifyCode () {
+      let _this = this
+      this.$refs['bankFlowForm'].validate((valid) => {
+        if (valid) {
+          // 进行60s倒计时
+          _this.getCodeBtnDisabled = true
+          _this.time = _this.defaultTime
+          _this.getCodeBtnText = '重新获取(' + _this.time + ' s)'
+          setTimeout(_this.timer, 1000)
+          _this.doSendValidCode()
+        } else {
+          return false
+        }
+      })
+    },
+    async doSendValidCode () {
+      let result = await sendVerifyCode(this.bankFlowForm)
+      if (result.retCode === '0') {
+        this.$message({
+          type: 'info',
+          message: '验证码已发送'
+        })
+      } else {
+        this.$message({
+          type: 'error',
+          message: result.errMsg
+        })
+      }
+    },
+    timer: function () {
+      if (this.time > 0) {
+        this.time--
+        this.getCodeBtnText = '重新获取(' + this.time + ' s)'
+        setTimeout(this.timer, 1000)
+      } else {
+        this.getCodeBtnDisabled = false
+        this.getCodeBtnText = this.secondCodeBtnText
+      }
+    },
+    dosubmit () {
+      // this.open();
+      // return;
+      let _this = this
+      this.$refs['bankFlowForm'].validate((valid) => {
+        if (valid) {
+          if (_this.bankFlowForm.verifyCode === '') {
+            this.$message({
+              type: 'error',
+              message: '请输入短信验证码'
+            })
+          } else {
+            _this.submitForm()
+          }
+        } else {
+          return false
+        }
+      })
+    },
+    async submitForm () {
+      let result = await saveBankInfo(this.bankFlowForm)
+      if (result.retCode === '0') {
+        // this.$message({
+        //   type: 'info',
+        //   message: '配置已保存'
+        // });
+        this.open()
+      } else {
+        this.$message({
+          type: 'error',
+          message: result.errMsg
+        })
+      }
+    },
+    guidePwd () {
+      this.guideDialogVisible = true
+      // this.$alert('<div class="guide-content"><div>1. 进入企业微信管理后台，在“企业应用“→“基础应用”，点击“审批”应用。</div><img class="guide-step1" src="./static/img/guide-step1.png"></img><div>2. 点开“API”小按钮，即可看到审批流秘钥。</div><img class="guide-step2" src="./static/img/guide-step2.png"></img></div>', '', {
+      //   confirmButtonText: '关闭',
+      //   center: true,
+      //   dangerouslyUseHTMLString: true,
+      // });
+    },
+    open () {
+      let text = '付款审批对接' + this.bankName
+      this.$alert('<div class="scs-msg"><img src="./static/img/bind-ok.png" /><div>您已完成企业微信审批流程对接银行的设置:' + text + '</div></div>', '', {
+        confirmButtonText: '完成',
+        center: true,
+        dangerouslyUseHTMLString: true
+      })
+    },
+    delBind () {
+      this.$confirm('<div class="del-msg"><img src="./static/img/unbinding.png"></img></div><div>请注意：取消绑定关系后，您的审批流程完成审批后，相关信息将无法再推送到银行APP</div>', '', {
+        confirmButtonText: '仍要解除绑定',
+        confirmButtonClass: 'reverse-default',
+        cancelButtonText: '取消',
+        cancelButtonClass: 'el-button--primary',
+        center: true,
+        dangerouslyUseHTMLString: true
+      }).then(() => {
+        let text = 'xxxx'
+        this.$alert('<div class="scs-msg"><img src="./static/img/bind-ok.png"></img></div><div>您已经成功解除审批流程对接银行的绑定关系:</div><div>' + text + '</div>', '', {
+          confirmButtonText: '完成',
+          center: true,
+          dangerouslyUseHTMLString: true
+        })
+      }).catch(() => {
+
+      })
+    }
+  }
+}
+</script>
+
+<style lang="scss">
+.content {
+  padding-left: 183px !important;
+  .left-menu {
+    float: left;
+    width: 208px;
+    ul {
+      .el-menu-item {
+        font-size: 16px;
+        padding-top: 28px;
+        padding-left: 16px !important;
+        // height: auto !important;
+        // margin-bottom: 28px;
+        height: 76.74px !important;
+        line-height: unset;
+        span {
+          vertical-align: unset;
+        }
+        &.is-active {
+          padding-right: 0px;
+          color: #277dff !important;
+          &:after {
+            content: '';
+            background: url(../../../../static/img/left-arrow.png);
+            width: 12px;
+            height: 24px;
+            background-size: 100% 100%;
+            position: relative;
+            float: right;
+            // top: 18px;
+          }
+        }
+      }
+    }
+  }
+  .right-content {
+    margin-left: 16px;
+    float: left;
+    width: 696px;
+    //min-width: 776px;
+    min-height: 616px;
+    background-color: white;
+    padding: 28px 40px;
+
+    .content-title {
+      font-size: 18px;
+      color: #999999;
+      .main-title {
+        cursor: pointer;
+      }
+      .sub-title {
+        color: #151515;
+      }
+    }
+    hr {
+      background-color: #e6e6e6;
+      height: 1px;
+      border: 0px;
+      margin-top: 16px;
+      margin-bottom: 40px;
+    }
+
+    .bank-flow-conf {
+      .step-0 {
+        text-align: center;
+        img {
+          width: 144px;
+          height: 112px;
+          margin-top: 25px;
+        }
+        div:nth-child(2) {
+          height: 21px;
+          color: #333333;
+          font-size: 16px;
+          margin-top: 16px;
+        }
+        div:nth-child(3) {
+          margin-top: 16px;
+          .el-button {
+            width: 120px;
+            height: 40px;
+            background-color: #277dff;
+            border-color: #277dff;
+            border-radius: 2px;
+            color: #ffffff;
+            span {
+              width: 64px;
+              height: 21px;
+              font-size: 16px;
+            }
+          }
+        }
+      }
+      .step-3 {
+        .bind-flow-box {
+          border: 1px solid #d9d9d9;
+          border-radius: 6px;
+          cursor: pointer;
+          overflow: hidden;
+          display: inline-block;
+          text-align: center;
+          outline: none;
+          margin-top: 10px;
+          width: 221px;
+          height: 160px;
+
+          &.edit {
+            text-align: left;
+            .bank-flow-info {
+              height: 165px;
+              overflow-y: auto;
+              img {
+                margin-bottom: 20px;
+                margin-top: 20px;
+                margin-left: 10px;
+              }
+              .bank-name {
+                display: block;
+                font-weight: bold;
+                margin-bottom: 10px;
+                margin-left: 10px;
+              }
+              .busi-list {
+                display: block;
+                margin-bottom: 10px;
+                margin-left: 10px;
+              }
+            }
+            .do-btn {
+              position: relative;
+              bottom: 0px;
+              height: 35px;
+              line-height: 35px;
+              border-top: 1px solid #d9d9d9;
+              span {
+                width: 50%;
+                color: #77c8ff;
+                font-weight: bold;
+                text-align: center;
+                display: inline-block;
+              }
+            }
+          }
+          &.add {
+            i {
+              width: 100%;
+              height: 160px;
+              line-height: 160px;
+              text-align: center;
+              font-size: 28px;
+              color: #8c939d;
+            }
+            div {
+              position: relative;
+              top: -50px;
+              font-size: small;
+              color: #8c939d;
+            }
+          }
+        }
+      }
+      .step-1 {
+        .bank-flow-form {
+          padding-right: 200px;
+          .el-form-item {
+            margin-bottom: 28px !important;
+            .el-form-item__label {
+              &:before {
+                content: '' !important;
+                margin-right: 0px;
+              }
+            }
+            .el-form-item__content {
+              margin-left: 100px !important;
+            }
+          }
+          .el-select {
+            width: 100%;
+          }
+          .el-input__inner {
+            width: 300px;
+            height: 36px;
+          }
+          .secret-clz {
+            margin-bottom: 12px !important;
+          }
+          .how-pwd {
+            color: #277dff;
+            margin-left: 100px;
+            font-size: 12px;
+            cursor: pointer;
+          }
+          .bankList {
+            & > div {
+              float: left;
+              width: 146px;
+              height: 80px;
+              margin-right: 10px;
+              border: 1px solid #d9e0e9;
+              text-align: center;
+              &.bank-selected {
+                border: 2px solid #277dff;
+                border-radius: 2px;
+              }
+              img {
+                width: 112px;
+                height: 26px;
+                position: relative;
+                top: 25px;
+              }
+              div {
+                margin-top: 20px;
+              }
+            }
+          }
+          .verify-code {
+            .el-form-item__content {
+              display: flex;
+              .el-input {
+                display: inline-flex;
+                max-width: 174px;
+                .el-input__inner {
+                  max-width: 174px;
+                }
+              }
+              button {
+                margin-left: 10px;
+                display: inline-flex;
+                width: 118px;
+                background-color: #277dff;
+                border-color: #277dff;
+                border-radius: 2px;
+                span {
+                  margin: auto;
+                  font-size: 14px;
+                }
+              }
+            }
+          }
+          .form-item-title {
+            &:nth-child(1) {
+              margin-top: 0px;
+            }
+            margin-top: 80px;
+            margin-bottom: 36px;
+            color: #333333;
+            font-size: 16px;
+            span {
+              text-align: center;
+              display: inline-block;
+              margin-right: 8px;
+              border-bottom-right-radius: 3px;
+              border-top-right-radius: 3px;
+              background: url(../../../../static/img/step_order.png);
+              background-size: 100% 100%;
+              width: 20px;
+              height: 18px;
+              line-height: 18px;
+              span {
+                display: inline;
+                color: #ffffff;
+                background: none;
+                margin-left: 3px;
+              }
+            }
+          }
+          .submit-item {
+            padding-top: 52px;
+            .el-form-item__content {
+              margin-left: 0px !important;
+              .el-button {
+                width: 88px;
+                height: 40px;
+                font-size: 16px;
+                &:nth-child(1) {
+                  background-color: #277dff;
+                  border-color: #277dff;
+                  border-radius: 2px;
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  .footer {
+    margin-top: 25px;
+  }
+}
+.el-message-box {
+  width: 360px;
+  padding-bottom: 16px;
+  .el-message-box__header {
+    padding-top: 48px;
+    .el-message-box__headerbtn {
+      top: 0px;
+      right: 16.3px;
+      .el-icon-close {
+        padding-top: 20px;
+        padding-bottom: 16.3px;
+        &:before {
+          content: '';
+          background: url(../../../../static/img/close.png);
+          width: 14.7px;
+          height: 14.7px;
+          background-size: 100% 100%;
+          display: inline-block;
+        }
+      }
+    }
+  }
+  .el-message-box__content {
+    color: #333333;
+    padding-top: 8px;
+    padding-bottom: 40px;
+  }
+}
+
+.guide-dialog {
+  .el-dialog {
+    width: 600px;
+    height: 568px;
+  }
+  .el-dialog__body {
+    margin-top: 23px;
+    padding-top: 0px;
+    padding-bottom: 15px;
+  }
+  .guide-content {
+    div {
+      text-align: left;
+      &.guide-step1 {
+        text-align: center;
+        margin-top: 16px;
+        margin-bottom: 28px;
+        img {
+          width: 360px;
+          height: 187px;
+        }
+      }
+      &.guide-step2 {
+        text-align: center;
+        margin-top: 16px;
+        margin-bottom: 28px;
+        img {
+          width: 440px;
+          height: 110px;
+        }
+      }
+    }
+  }
+  .el-dialog__footer {
+    text-align: center;
+    position: relative;
+    bottom: 16px;
+    .dialog-footer {
+      .el-button {
+        width: 88px;
+        height: 40px;
+        background-color: #277dff;
+        border-color: #277dff;
+        border-radius: 2px;
+        color: #ffffff;
+        font-size: 16px;
+      }
+    }
+  }
+}
+.el-message-box__wrapper {
+  .scs-msg {
+    img {
+      width: 144px;
+      height: 112px;
+      margin-bottom: 32px;
+    }
+    div {
+      font-size: 16px;
+      color: #333333;
+      line-height: 26px;
+      width: 100%;
+      height: 52px;
+
+      text-align: left;
+    }
+  }
+  .del-msg {
+    font-size: 60px;
+    margin-bottom: 10px;
+    color: #f56c6c;
+  }
+  .el-message-box__btns {
+    padding-top: 0px;
+    .el-button {
+      font-size: 16px;
+      width: 88px;
+      height: 40px;
+      background-color: #277dff;
+      border-color: #277dff;
+      border-radius: 2px;
+    }
+    .reverse-default {
+      background-color: #fff !important;
+      color: #303133;
+      border: 1px solid #dcdfe6;
+      float: left;
+      margin-left: 30px;
+    }
+  }
+}
+</style>

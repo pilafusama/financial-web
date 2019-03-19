@@ -1,0 +1,433 @@
+<template>
+  <el-container>
+    <el-header>
+      <a @click="back"><img class="back" src="../../assets/back.png"></a>收款信息
+    </el-header>
+    <el-main>
+      <el-row>
+        <el-col :span="12" class="colLeft">申请单号</el-col>
+        <el-col :span="12" class="colRight">{{costDetail.order_id}}</el-col>
+      </el-row>
+      <el-row>
+        <el-col :span="12" class="colLeft">费用类型</el-col>
+        <el-col :span="12" class="colRight">{{costDetail.type}}</el-col>
+      </el-row>
+      <el-row>
+        <el-col :span="12" class="colLeft sublenth">申请事由</el-col>
+        <el-col :span="12" class="colRight">{{ costDetail.apply_reason }}</el-col>
+      </el-row>
+      <el-row>
+        <el-col :span="12" class="colLeft">费用金额</el-col>
+        <el-col :span="12" class="colRight">{{ costDetail.cost | formatMoney }} 元</el-col>
+      </el-row>
+    </el-main>
+    <div class="div">报销费用收款信息</div>
+    <el-form>
+      <el-row class="lineNone">
+        <el-col :span="20">收款人</el-col>
+        <el-col :span="4">
+          <img @click="toHistory" class="img" src="../../assets/history.png">
+        </el-col>
+      </el-row>
+      <el-row class="lineNone">
+        <el-col :span="24">
+          <el-input v-model="costDetail.receive_name" placeholder="请输入收款人姓名" @blur="saveName"></el-input>
+        </el-col>
+      </el-row>
+      <el-row class="lineNone">
+        <el-col :span="20">收款账号</el-col>
+        <el-col :span="4"><img @click="toPhoto" class="img" src="../../assets/photo.png"></el-col>
+      </el-row>
+      <el-row class="lineNone">
+        <el-col :span="24">
+          <el-input type="tel" pattern="[0-9]*" v-model="costDetail.receive_account" placeholder="请输入收款人账号" @blur="saveAccount" v-on:input="accFilter"></el-input>
+        </el-col>
+      </el-row>
+      <el-row>
+        <el-col :span="9" class="colLeft">收款人开户行</el-col>
+        <a @click="toSelectBank">
+          <el-col :span="15" class="colRight">{{costDetail.account_bank}}
+            <i class="el-icon-arrow-right "></i>
+          </el-col>
+        </a>
+      </el-row>
+      <el-row v-if="costDetail.flag === 1">
+        <el-col :span="9 " class="colLeft ">开户行城市</el-col>
+        <a @click="showAddressPickerPar">
+          <el-col :span=" 15 " class="colRight ">{{costDetail.account_city}}
+            <i class="el-icon-arrow-right "></i>
+          </el-col>
+        </a>
+      </el-row>
+      <el-row class="lineNone " v-if="costDetail.flag === 1 ">
+        <el-col :span="7 " class="colLeft ">开户支行</el-col>
+        <a @click="toSelectBranch ">
+          <el-col :span="17 " class="colRight sublenth">{{costDetail.account_subbank}}
+            <i class="el-icon-arrow-right "></i>
+          </el-col>
+        </a>
+      </el-row>
+      <el-row class="lineNone ">
+        <el-col :span="2 " class="colLeft ">
+          <el-checkbox v-model="costDetail.keepHistory "></el-checkbox>
+        </el-col>
+        <el-col :span="22 " class="keepHistory ">
+          <span style="font-size:4vw">保存收款信息到历史记录</span>
+        </el-col>
+      </el-row>
+    </el-form>
+    <el-button @click="next " class="el-btn ">提交</el-button>
+    <select-city class="photo " v-on:cityInfo=" confirmPar " v-on:cancel="cancel " :regionVisible="regionVisible "></select-city>
+    <paysuccess-dialog v-show="showDialog" v-model="showDialog" @closeDialog="closeDialog">
+    </paysuccess-dialog>
+
+  </el-container>
+</template>
+<script>
+import { getApprovalDetail, accountConfirm } from '@/api/getData'
+import { MessageBox } from 'mint-ui'
+import cookieUtils from '@/utils/CookieUtils'
+import { gotoH5Login } from '@/utils/common'
+import SelectCity from '@/h5pages/approve_detail/SelectCity'
+import PaysuccessDialog from './PaySuccessDialog'
+export default {
+  name: 'ReceivableInfo',
+  components: {
+    SelectCity,
+    PaysuccessDialog
+  },
+  data () {
+    return {
+      form: {
+        approval_id: '',
+        corp_id: '',
+        user_id: '',
+        logSsid: '',
+        timeStamp: '123456',
+        nonce: 'random',
+        sign: ''
+      },
+      costDetail: {
+        order_id: '',
+        type: '',
+        apply_reason: '',
+        cost: '',
+        flag: '', //是否大于5万
+        receive_name: '',
+        receive_account: '',
+        account_bank: '',
+        account_bank_code: '',
+        account_area: '',
+        account_city: '',
+        account_city_code: '',
+        account_subbank: '',
+        account_subbank_code: '',
+        keepHistory: true
+      },
+      regionVisible: false, // 弹出框是否可见
+      showDialog: false// 弹出框是否可见
+    }
+  },
+  created () {
+    if (process.env.NODE_ENV === 'development') {
+      this.form.corp_id = 'wwab433cc997fe7ff3'
+      this.form.user_id = 'unknown'
+      this.form.sign = 'ba3b1c30-140b-4748-820e-112557541171'
+      this.form.logSsid = 'ba3b1c30-140b-4748-820e-112557541171'
+
+      if (this.$route.query.approvalId === undefined || this.$route.query.approvalId === '') {
+        if (this.$store.state.receiveInfo.approval_id === '') {
+          window.location.href = 'list.html'
+        } else {
+          this.form.approval_id = this.$store.state.receiveInfo.approval_id
+        }
+      } else {
+        this.form.approval_id = this.$route.query.approvalId
+        this.$store.commit('setReceiveInfo', { approval_id: this.$route.query.approvalId })
+      }
+    } else {
+      this.form.corp_id = cookieUtils.getCookie('corpid')
+      this.form.sign = cookieUtils.getCookie('sign')
+      this.form.logSsid = cookieUtils.getCookie('logSsid')
+
+      if (this.$route.query.approvalId === undefined || this.$route.query.approvalId === '') {
+        if (this.$store.state.receiveInfo.approval_id === '') {
+          window.location.href = 'list.html'
+        } else {
+          this.form.approval_id = this.$store.state.receiveInfo.approval_id
+        }
+      } else {
+        this.form.approval_id = this.$route.query.approvalId
+        this.$store.commit('setReceiveInfo', { approval_id: this.$route.query.approvalId })
+      }
+
+      let userId = this.$route.query.userId
+      if (userId === '' || userId === undefined) {
+        userId = cookieUtils.getCookie('userid')
+      } else {
+        cookieUtils.setCookie('userid', userId, 1)
+      }
+      this.form.user_id = userId
+    }
+    // if (this.form.corp_id === '' || this.form.sign === '') {
+    if (this.form.corp_id === '') {
+      gotoH5Login()
+    }
+
+    this.costDetail.order_id = this.form.approval_id
+    this.costDetail.receive_name = this.$store.state.receiveInfo.receive_name
+    this.costDetail.receive_account = this.$store.state.receiveInfo.receive_account
+    this.costDetail.account_bank = this.$store.state.receiveInfo.account_bank
+    this.costDetail.account_bank_code = this.$store.state.receiveInfo.account_bank_code
+    this.costDetail.account_area = this.$store.state.receiveInfo.account_area
+    this.costDetail.account_city = this.$store.state.receiveInfo.account_city
+    this.costDetail.account_city_code = this.$store.state.receiveInfo.account_city_code
+    this.costDetail.account_subbank = this.$store.state.receiveInfo.account_subbank
+    this.costDetail.account_subbank_code = this.$store.state.receiveInfo.account_subbank_code
+    this.loadData()
+  },
+  methods: {
+    async next () {
+      if (this.costDetail.flag === 1 && (this.costDetail.receive_account === '' || this.costDetail.receive_account === undefined ||
+        this.costDetail.receive_name === '' || this.costDetail.receive_name === undefined ||
+        this.costDetail.account_bank === '' || this.costDetail.account_bank === undefined ||
+        this.costDetail.account_subbank === '' || this.costDetail.account_subbank === undefined ||
+        this.costDetail.account_city === '' || this.costDetail.account_city === undefined)) {
+        MessageBox('提示', '请补全收款信息')
+      } else if (this.costDetail.flag === 0 && (this.costDetail.receive_account === '' || this.costDetail.receive_account === undefined ||
+        this.costDetail.receive_name === '' || this.costDetail.receive_name === undefined ||
+        this.costDetail.account_bank === '' || this.costDetail.account_bank === undefined)) {
+        MessageBox('提示', '请补全收款信息')
+      } else {
+        let reg = /^[1-9]\d*$/
+        let index = this.costDetail.receive_account.replace(/\s/g, '')
+        if (new RegExp(reg).test(index) === false) {
+          MessageBox('提示', '收款账号只能为数字')
+        }
+
+        let namereg = /^[\u4E00-\u9FA5A-Za-z\s]+(·[\u4E00-\u9FA5A-Za-z]+)*$/
+        if (!new RegExp(namereg).test(this.costDetail.receive_name)) {
+          MessageBox('提示', '收款人姓名包含非法字符')
+        }
+
+        let param = {}
+
+        param.approval_id = this.costDetail.order_id
+        param.corp_id = this.form.corp_id
+        param.user_id = this.form.user_id
+        param.large_amount_flag = this.costDetail.flag
+
+        param.receive_name = this.costDetail.receive_name
+        param.receive_account = this.costDetail.receive_account.replace(/\s/g, '')
+        param.account_bank = this.costDetail.account_bank
+        param.account_bank_code = this.costDetail.account_bank_code
+
+        param.account_subbank = this.costDetail.account_subbank
+        param.account_subbank_code = this.costDetail.account_subbank_code
+
+        param.account_area =  this.costDetail.account_area
+        param.account_city = this.costDetail.account_city
+        param.account_city_code = this.costDetail.account_city_code
+
+        param.cross_flag = param.account_bank_code === '307584007998' ? 0 : 1
+        param.account_type = 0
+
+        param.logSsid = this.form.logSsid
+        param.timeStamp = this.form.timeStamp
+        param.nonce = this.form.nonce
+        param.sign = this.form.sign
+        param.save_acount_flag = this.costDetail.keepHistory ? 1 : 0 // 0 不保存 1保存
+
+        console.info(param)
+
+        let result = await accountConfirm(param)
+        if (result.retCode !== '0') {
+          if (result.errMsg) {
+            MessageBox('提示', result.errMsg)
+          } else {
+            MessageBox('提示', '数据异常')
+            this.$router.push({ path: '/list' })
+          }
+        } else {
+          this.initReceiveInfo()
+          this.openDialog()
+        }
+      }
+    },
+    saveName () {
+      this.$store.commit('setReceiveInfo', { receive_name: this.costDetail.receive_name })
+    },
+    saveAccount () {
+      this.$store.commit('setReceiveInfo', { receive_account: this.costDetail.receive_account })
+    },
+    back () {
+      this.initReceiveInfo()
+      this.$router.push({ path: '/list' })
+    },
+    toHistory () {
+      let vm = this
+      vm.$router.push({ name: '历史收款人', params: { user_id: this.form.user_id } })
+    },
+    toPhoto () {
+      let vm = this
+      vm.$router.push({ path: '/Photo' })
+    },
+    toSelectBank () {
+      let vm = this
+      vm.$router.push({ path: '/SelectBank' })
+    },
+    toSelectBranch () {
+      if (this.costDetail.receive_account === '' || this.costDetail.receive_account === undefined ||
+        this.costDetail.receive_name === '' || this.costDetail.receive_name === undefined ||
+        this.costDetail.account_bank === '' || this.costDetail.account_bank === undefined ||
+        this.costDetail.account_city === '' || this.costDetail.account_city === undefined
+        ) {
+        MessageBox('提示', '请先完成收款人、收款人账号、收款人开户行信息')
+      } else {
+        let vm = this
+        vm.$router.push({ path: '/SelectBranch'})
+      }
+    },
+    showAddressPickerPar () {
+      this.regionVisible = true
+    },
+    confirmPar (cityInfo) {
+      this.costDetail.account_city = cityInfo.bank_city
+      this.costDetail.account_city_code = cityInfo.bank_cityCode
+      this.costDetail.account_subbank = cityInfo.bank_lname
+      this.costDetail.account_subbankCode = cityInfo.bank_bnkcode
+      this.regionVisible = false
+    },
+    cancel () {
+      this.regionVisible = false
+    },
+    initReceiveInfo () {
+      this.$store.commit('setReceiveInfo', {
+        approval_id: '',
+        receive_name: '',
+        receive_account: '',
+        account_bank: '',
+        account_bank_code: '',
+        account_area: '',
+        account_city: '',
+        account_city_code: '',
+        account_subbank: '',
+        account_subbank_code: ''
+      })
+    },
+    openDialog () {
+      this.costDetail.receive_name = ''
+      this.costDetail.receive_account = ''
+      this.costDetail.account_bank = ''
+      this.costDetail.account_city = ''
+      this.costDetail.account_subbank = ''
+      this.costDetail.flag = ''
+      this.costDetail.keepHistory = ''
+
+      this.showDialog = true
+    },
+    closeDialog () {
+      this.showDialog = false
+      this.$router.push({ path: '/list' })
+    },
+    async loadData () {
+      let result = await getApprovalDetail(this.form)
+
+      if (result.retCode !== '0') {
+        if (result.errMsg) {
+          MessageBox('提示', result.errMsg)
+        } else {
+          MessageBox('提示', '数据异常')
+          this.$router.push({ path: '/list' })
+        }
+      } else {
+        if (result.details.status !== 2) {
+          // 状态不符合，跳转到列表
+          MessageBox('提示', '此单不需要填写')
+          this.$router.push({ path: '/list' })
+          return
+        }
+        let detail = result.details
+        this.costDetail.type = detail.detail.expense_type
+        this.costDetail.apply_reason = detail.detail.reason
+        this.costDetail.cost = detail.amount / 100 + '元'
+        this.costDetail.flag = detail.large_amount_flag
+      }
+    },
+    accFilter () {
+      this.costDetail.receive_account = this.costDetail.receive_account.replace(/\s/g, '').replace(/[^\d]/g, '').replace(/(\d{4})(?=\d)/g, '$1 ')
+    }
+  }
+}
+</script>
+<style>
+</style>
+<style scoped>
+.div {
+  color: #777e8a;
+  margin-left: 2vh;
+  font-size: 4.5vw;
+}
+.el-main {
+  margin: 3vh 0 3vh 0;
+  padding: 0 0 0 2vh;
+  background-color: #ffffff;
+}
+.el-main .el-row {
+  border-bottom: 1px solid #d9d9d9;
+  height: 11vw;
+  line-height: 11vw;
+}
+.el-form {
+  margin: 2vh 0 3vh 0;
+  padding: 0 0 0 2vh;
+  background-color: #ffffff;
+}
+.el-form .el-row {
+  text-align: left;
+  border-bottom: 1px solid #d9d9d9;
+}
+.el-form .el-row .el-col {
+  font-size: 5vw;
+  height: 11vw;
+  line-height: 11vw;
+  font-family: HelveticaNeue, Helvetica, Arial, sans-serif;
+}
+.lineNone {
+  border: 0 !important;
+}
+hr {
+  padding: 0;
+  margin: 0;
+  background-color: #d9d9d9;
+  height: 1px;
+}
+.colRight {
+  color: #888888;
+  text-align: right;
+  padding-right: 2vh;
+  font-size: 5vw;
+  font-family: HelveticaNeue, Helvetica, Arial, sans-serif;
+}
+.colLeft {
+  font-size: 5vw;
+  font-family: HelveticaNeue, Helvetica, Arial, sans-serif;
+}
+.el-form .colRight {
+  font-size: 4vw !important;
+}
+.img {
+  width: 8vw;
+  height: 8vw;
+  padding-top: 1vw;
+}
+.keepHistory {
+  color: #777e8a;
+  font-size: 4vw;
+}
+.sublenth {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+</style>
